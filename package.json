@@ -1,0 +1,5 @@
+{
+    "name": "nordic-nrfutil",
+    "version": "8.1.1",
+    "description": "nRF Util - Nordic Semiconductor's utility for programming and updating nRF devices"
+}
