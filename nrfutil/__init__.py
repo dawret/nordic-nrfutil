@@ -27,6 +27,7 @@ PACKAGE = {
 }
 SUBCOMMANDS = {"sdk-manager": {}, "nrf5sdk-tools": {}}
 
+
 def get_platorm_slug():
     if platform.system().lower() == "windows":
         if platform.machine() != "x86_64":
@@ -76,16 +77,20 @@ def download_components(executable, package, target_location: Path):
     package_filename = package["filename"].format(
         platform_slug=platform_slug, version=package["version"]
     )
+    exe_filename = executable["filename"].format(
+        platform_slug=platform_slug,
+        version=executable["version"],
+        hash=executable["hash"],
+    )
+    if platform_slug.startswith("aarch64-unknown-linux-gnu"):
+        # aarch64 linux binary is simply called "nrfutil"
+        exe_filename = "nrfutil"
     files = {
         "exe": (
             target_location / "nrfutil",
             urljoin(
                 urljoin(executable["base_url"], platform_slug + "/"),
-                executable["filename"].format(
-                    platform_slug=platform_slug,
-                    version=executable["version"],
-                    hash=executable["hash"],
-                ),
+                exe_filename,
             ),
         ),
         "nrfutil": (
@@ -122,7 +127,8 @@ def install_core_package(nrfutil, core_tarball, version):
         raise RuntimeError(
             f"nrfutil version mismatch: expected {version}, got {ret['version']}",
         )
-    
+
+
 def install_subcommand(nrfutil, name, version=None):
     args = ["--json"]
     if version is not None:
@@ -146,8 +152,9 @@ def install_nrfutil(downloaded, package, subcommands, install_location):
     return nrfutil
 
 
-def setup(install_location = INSTALL_LOCATION / "sdk"):
+def setup(install_location=INSTALL_LOCATION / "sdk"):
     from .nrfutil import NrfUtil
+
     try:
         components = download_components(EXECUTABLE, PACKAGE, DOWNLOAD_LOCATION)
         exe = install_nrfutil(components, PACKAGE, SUBCOMMANDS, INSTALL_LOCATION)
