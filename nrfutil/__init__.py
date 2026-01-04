@@ -32,7 +32,7 @@ PACKAGE = {
     "filename": "nrfutil-{platform_slug}-{version}.tar.gz",
 }
 SUBCOMMANDS = {"sdk-manager": {}, "nrf5sdk-tools": {}}
-SUBCOMMANDS_LINUXARM64 = {"sdk_manager": {}}
+SUBCOMMANDS_LINUXARM64 = {"sdk-manager": {}}
 
 
 def get_platorm_slug():
@@ -155,7 +155,7 @@ def install_nrfutil(downloaded, package, subcommands, install_location):
     return nrfutil
 
 
-def setup(install_location=INSTALL_LOCATION / "sdk"):
+def setup(platform, install_location=INSTALL_LOCATION / "sdk"):
     from .nrfutil import NrfUtil, NrfUtilLinuxArm64
 
     try:
