@@ -6,12 +6,15 @@ import shutil
 
 
 class NrfUtilSdk:
-    def __init__(self, nrfutil, version, env, sdk_path, toolchain_path):
+    def __init__(
+        self, nrfutil, version, env, sdk_path, toolchain_path, fresh_install=False
+    ):
         self.nrfutil = nrfutil
         self.version = version
         self.env = env
         self.sdk_path = Path(sdk_path)
         self.toolchain_path = Path(toolchain_path)
+        self.fresh_install = fresh_install
 
 
 class NrfUtil:
@@ -32,6 +35,7 @@ class NrfUtil:
         return ret["out"]
 
     def install_sdk(self, version):
+        fresh_install = self.get_sdk_path(version) is None
         args = (
             [self.executable, "sdk-manager", "install", version]
             + self.sdk_default_args
@@ -49,21 +53,28 @@ class NrfUtil:
             env=self.get_sdk_env(version),
             sdk_path=self.get_sdk_path(version),
             toolchain_path=self.get_toolchain_path(version),
+            fresh_install=fresh_install,
         )
 
     def _list_sdks(self):
-        args = [self.executable, "sdk-manager", "list" ] + self.sdk_default_args + self.default_args
+        args = (
+            [self.executable, "sdk-manager", "list"]
+            + self.sdk_default_args
+            + self.default_args
+        )
         ret = exec_command(args)
         check_command_return(ret, "Failed to list SDK versions")
-        data = json.loads(ret["out"])["data"]
-        return data["versions"]
+        if ret["out"].strip() == "" or "data" not in ret["out"]:
+            return []
+        out = json.loads(ret["out"])
+        return out["data"]["versions"]
 
     def get_toolchain_path(self, version):
         for v in self._list_sdks():
             if v["version"] == version and v["toolchainStatus"] == "installed":
                 return v["toolchainPath"]
         raise RuntimeError(f"Toolchain version {version} not found.")
-    
+
     def get_sdk_path(self, version):
         for v in self._list_sdks():
             if v["version"] == version and v["toolchainStatus"] == "installed":
@@ -72,16 +83,99 @@ class NrfUtil:
                         f"Multiple SDK directories found for version {version}: {v['dirNames']}"
                     )
                 return v["dirNames"][0]
-        raise RuntimeError(f"SDK version {version} not found.")
-
+        return None
 
     def get_sdk_env(self, version):
         args = (
-            [self.executable, "sdk-manager", "toolchain", "env", "--ncs-version", version]
+            [
+                self.executable,
+                "sdk-manager",
+                "toolchain",
+                "env",
+                "--ncs-version",
+                version,
+            ]
             + self.sdk_default_args
             + self.default_args
         )
         ret = exec_command(args)
-        check_command_return(ret, f"Failed to get SDK environment for version {version}")
+        check_command_return(
+            ret, f"Failed to get SDK environment for version {version}"
+        )
         data = json.loads(ret["out"])["data"]
-        return {e["key"] : e["value"] for e in data["env_variables"]}
+        return {e["key"]: e["value"] for e in data["env_variables"]}
+
+    def create_dfu_package(self, input: Path, output: Path):
+        args = [
+            "pkg",
+            "generate",
+            "--hw-version",
+            "52",
+            "--sd-req",
+            "0x00",
+            "--application",
+            str(input),
+            "--application-version",
+            "1",
+            str(output),
+        ]
+        self.run_subcommand("nrf5sdk-tools", args)
+        if not output.is_file():
+            raise RuntimeError(f"Failed to create DFU package at {output}")
+
+    def flash_dfu_package(self, port: str, speed: str, package: Path):
+        args = [
+            "dfu",
+            "usb-serial",
+            "-pkg",
+            str(package),
+            "-p",
+            port,
+            "-b",
+            speed,
+        ]
+        self.run_subcommand("nrf5sdk-tools", args)
+
+class NrfUtilLinuxArm64(NrfUtil):
+    def __init__(
+        self, nrfutil: Path, sdk_install_location: Path, adafruit_nrfutil: Path
+    ):
+        super().__init__(nrfutil, sdk_install_location)
+        if not adafruit_nrfutil.exists():
+            raise FileNotFoundError("adafruit-nrfutil is not installed.")
+        self.adafruit_nrfutil = adafruit_nrfutil
+
+    def create_dfu_package(self, input: Path, output: Path):
+        args = [
+            str(self.adafruit_nrfutil),
+            "dfu",
+            "genpkg",
+            "--dev-type",
+            "0x0052",
+            "--sd-req",
+            "0x00",
+            "--application",
+            str(input),
+            str(output),
+        ]
+        ret = exec_command(args)
+        check_command_return(ret, "Failed to create DFU package with adafruit-nrfutil")
+        if not output.is_file():
+            raise RuntimeError(f"Failed to create DFU package at {output}")
+        
+    def flash_dfu_package(self, port: str, speed :str, package: Path):
+        args = [
+            str(self.adafruit_nrfutil),
+            "dfu",
+            "serial",
+            "-p",
+            port,
+            str(package),
+            "-b",
+            speed,
+            "--singlebank",
+            "-pkg",
+            str(package),
+        ]
+        ret = exec_command(args)
+        check_command_return(ret, "Failed to flash DFU package with adafruit-nrfutil")
