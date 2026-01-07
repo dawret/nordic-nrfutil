@@ -20,19 +20,12 @@ EXECUTABLE = {
     "hash": "e0abdbe",
     "filename": "nrfutil-{platform_slug}-{version}-{hash}",
 }
-EXECUTABLE_LINUXARM64 = {
-    "version": "unknown",
-    "hash": "unknown",
-    "base_url": urljoin(BASE_NORDIC_URL, "executables/"),
-    "filename": "nrfutil",
-}
 PACKAGE = {
     "version": "8.1.1",
     "base_url": urljoin(PACKAGES_BASE_URL, "nrfutil"),
     "filename": "nrfutil-{platform_slug}-{version}.tar.gz",
 }
 SUBCOMMANDS = {"sdk-manager": {}, "nrf5sdk-tools": {}}
-SUBCOMMANDS_LINUXARM64 = {"sdk-manager": {}}
 
 
 def get_platorm_slug():
@@ -155,23 +148,12 @@ def install_nrfutil(downloaded, package, subcommands, install_location):
     return nrfutil
 
 
-def setup(platform, install_location=INSTALL_LOCATION / "sdk"):
-    from .nrfutil import NrfUtil, NrfUtilLinuxArm64
+def setup():
+    from .nrfutil import NrfUtil
 
-    try:
-        is_linuxarm64 = get_platorm_slug() == "aarch64-unknown-linux-gnu"
-        executable = EXECUTABLE_LINUXARM64 if is_linuxarm64 else EXECUTABLE
-        subcommands = SUBCOMMANDS_LINUXARM64 if is_linuxarm64 else SUBCOMMANDS
-        components = download_components(executable, PACKAGE, DOWNLOAD_LOCATION)
-        exe = install_nrfutil(components, PACKAGE, subcommands, INSTALL_LOCATION)
-        if is_linuxarm64:
-            adafruit_nrfutil = (
-                Path(platform.get_package_dir("tool-adafruit-nrfutil"))
-                / "adafruit-nrfutil.py"
-            )
-            return NrfUtilLinuxArm64(exe, install_location, adafruit_nrfutil)
-        else:
-            return NrfUtil(exe, install_location)
-    except Exception as e:
-        print(e, file=sys.stderr)
-        exit(1)
+    if (INSTALL_LOCATION / "nrfutil").exists():
+        return NrfUtil(INSTALL_LOCATION / "nrfutil")
+
+    components = download_components(EXECUTABLE, PACKAGE, DOWNLOAD_LOCATION)
+    exe = install_nrfutil(components, PACKAGE, SUBCOMMANDS, INSTALL_LOCATION)
+    return NrfUtil(exe)
