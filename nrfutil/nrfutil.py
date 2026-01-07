@@ -43,7 +43,7 @@ class NrfUtil:
     def get_sdk(self, version, location: Path):
         path = self.get_sdk_path(version, location)
         if path is None:
-            raise RuntimeError(f"SDK version {version} not found in {location}.")
+            return None
         return NrfUtilSdk(
             nrfutil=self,
             version=version,
