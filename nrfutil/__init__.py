@@ -30,7 +30,7 @@ SUBCOMMANDS = {"sdk-manager": {}, "nrf5sdk-tools": {}}
 
 def get_platorm_slug():
     if platform.system().lower() == "windows":
-        if platform.machine() != "x86_64":
+        if platform.machine() != "x86_64" and platform.machine() != "AMD64":
             print(
                 f"Unsupported architecture: {platform.machine()} on Windows",
                 file=sys.stderr,
