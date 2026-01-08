@@ -18,7 +18,7 @@ EXECUTABLE = {
     "version": "1.2.3",
     "base_url": urljoin(BASE_NORDIC_URL, "executables/"),
     "hash": "e0abdbe",
-    "filename": "nrfutil-{platform_slug}-{version}-{hash}",
+    "filename": "nrfutil-{platform_slug}-{version}-{hash}{extension}",
 }
 PACKAGE = {
     "version": "8.1.1",
@@ -77,15 +77,17 @@ def download_components(executable, package, target_location: Path):
     package_filename = package["filename"].format(
         platform_slug=platform_slug, version=package["version"]
     )
+    extension = ".exe" if platform.system().lower() == "windows" else ""
     files = {
         "exe": (
-            target_location / "nrfutil",
+            target_location / f"nrfutil{extension}",
             urljoin(
                 urljoin(executable["base_url"], platform_slug + "/"),
                 executable["filename"].format(
                     platform_slug=platform_slug,
                     version=executable["version"],
                     hash=executable["hash"],
+                    extension=extension,
                 ),
             ),
         ),
@@ -107,7 +109,8 @@ def download_components(executable, package, target_location: Path):
 
 
 def install_executable(exe, install_location):
-    target = install_location / "nrfutil"
+    extension = ".exe" if platform.system().lower() == "windows" else ""
+    target = install_location / f"nrfutil{extension}"
     shutil.copy(exe, target)
     target.chmod(target.stat().st_mode | 0o111)  # Make executable
     return target
@@ -150,9 +153,9 @@ def install_nrfutil(downloaded, package, subcommands, install_location):
 
 def setup():
     from .nrfutil import NrfUtil
-
-    if (INSTALL_LOCATION / "nrfutil").exists():
-        return NrfUtil(INSTALL_LOCATION / "nrfutil")
+    extension = ".exe" if platform.system().lower() == "windows" else ""
+    if (INSTALL_LOCATION / f"nrfutil{extension}").exists():
+        return NrfUtil(INSTALL_LOCATION / f"nrfutil{extension}")
 
     components = download_components(EXECUTABLE, PACKAGE, DOWNLOAD_LOCATION)
     exe = install_nrfutil(components, PACKAGE, SUBCOMMANDS, INSTALL_LOCATION)
