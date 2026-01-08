@@ -118,7 +118,7 @@ def install_executable(exe, install_location):
 
 def install_core_package(nrfutil, core_tarball, version):
     env = os.environ.copy()
-    env["NRFUTIL_BOOTSTRAP_TARBALL_PATH"] = core_tarball
+    env["NRFUTIL_BOOTSTRAP_TARBALL_PATH"] = str(core_tarball)
     ret = exec_command([nrfutil, "--version", "--json"], env=env)
     check_command_return(ret, "Failed to install nrfutil core tarball")
     ret = json.loads(ret["out"])["data"]
